@@ -12,6 +12,7 @@ import android.os.Environment;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.widget.AdapterView;
+import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.Spinner;
 import android.widget.TextView;
@@ -29,6 +30,11 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.PriorityQueue;
+import java.util.Queue;
+
+
+
 
 import static com.example.axcel.datalogger.R.id.fab;
 
@@ -47,16 +53,25 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     TextView gyro_yCoords; // declare Y axis object
     TextView gyro_zCoords;
 
+    CheckBox log_checker;
+
     String current_activity;
     int recorder_checker = 0;
 
     BufferedWriter file;
 
     EditText custom_input;
+    TextView text_cur_activity;
 
     FloatingActionButton fab;
 
+    Queue<Float> dataQueue = new PriorityQueue<>();
 
+    Des_tree des_tree;
+
+    String[] activities = {"Eating", "Riding on train", "SittingChair", "Walking"};
+
+    int queue_checker = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -97,6 +112,8 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         gyro_yCoords =(TextView)findViewById(R.id.gyro_2); // create Y axis object
         gyro_zCoords =(TextView)findViewById(R.id.gyro_3); // create Z axis object
 
+        log_checker = (CheckBox) findViewById(R.id.checkBox);
+
         sensorManager=(SensorManager)getSystemService(SENSOR_SERVICE);
         // add listener. The listener will be  (this) class
         sensorManager.registerListener(this,
@@ -113,6 +130,8 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
 
         custom_input = (EditText) findViewById(R.id.custom_text);
+
+        text_cur_activity = (TextView) findViewById(R.id.cur_movement);
 
         Spinner spinner = (Spinner) findViewById(R.id.mine_activity);
         // Создаем адаптер ArrayAdapter с помощью массива строк и стандартной разметки элемета spinner
@@ -172,7 +191,17 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                 accel_yCoords.setText("Y: " + y);
                 accel_zCoords.setText("Z: " + z);
 
-                write("Accel", current_activity, event.values);
+
+                if (log_checker.isChecked()) {
+                    write("Accel", current_activity, event.values);
+                }
+
+
+                dataQueue.add((float) 0);
+                dataQueue.add(x);
+                dataQueue.add(y);
+                dataQueue.add(z);
+
 
             }
 
@@ -187,9 +216,28 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                 gyro_yCoords.setText("Y: " + y);
                 gyro_zCoords.setText("Z: " + z);
 
-                write("Gyro", current_activity, event.values);
+                if (log_checker.isChecked()) {
+                    write("Gyro", current_activity, event.values);
+                }
+
+                dataQueue.add((float) 1.0);
+                dataQueue.add(x);
+                dataQueue.add(y);
+                dataQueue.add(z);
 
             }
+        }
+
+        if (dataQueue.size() >= 20) {
+            float[] cur_data = new float[200];
+
+            for (int i = 0; i < 20; ++i){
+                cur_data[i] = dataQueue.poll();
+            }
+
+            int pred = des_tree.predict(cur_data);
+            text_cur_activity.setText(activities[pred]);
+
         }
 
     }
