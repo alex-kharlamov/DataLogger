@@ -13,8 +13,10 @@ import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.widget.AdapterView;
 import android.widget.CheckBox;
+import android.widget.CompoundButton;
 import android.widget.EditText;
 import android.widget.Spinner;
+import android.widget.Switch;
 import android.widget.TextView;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
@@ -34,10 +36,8 @@ import java.util.PriorityQueue;
 import java.util.Queue;
 
 
-
-
 import static com.example.axcel.datalogger.R.id.fab;
-
+import static com.example.axcel.datalogger.R.id.mine_activity;
 
 
 public class MainActivity extends AppCompatActivity implements SensorEventListener {
@@ -53,12 +53,16 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     TextView gyro_yCoords; // declare Y axis object
     TextView gyro_zCoords;
 
-    CheckBox log_checker;
+    Switch log_checker;
+
+    Spinner spinner;
+
 
     String current_activity;
     int recorder_checker = 0;
 
     BufferedWriter file;
+    int file_flag = 0;
 
     EditText custom_input;
     TextView text_cur_activity;
@@ -69,7 +73,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
     Des_tree des_tree;
 
-    String[] activities = {"Eating", "Riding on train", "SittingChair", "Walking"};
+    String[] activities = {"Jumping", "Running", "Walking"};
 
     int queue_checker = 0;
 
@@ -88,7 +92,9 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                 if (recorder_checker == 0) {
                     Snackbar.make(view, "Recording is activated", Snackbar.LENGTH_LONG)
                             .setAction("Action", null).show();
-                    startRecording();
+                    if (log_checker.isChecked()) {
+                        startRecording();
+                    }
                     recorder_checker += 1;
 
                     fab.setImageResource(android.R.drawable.ic_media_pause);
@@ -112,7 +118,9 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         gyro_yCoords =(TextView)findViewById(R.id.gyro_2); // create Y axis object
         gyro_zCoords =(TextView)findViewById(R.id.gyro_3); // create Z axis object
 
-        log_checker = (CheckBox) findViewById(R.id.checkBox);
+        log_checker = (Switch) findViewById(R.id.switch1);
+        spinner = (Spinner) findViewById(R.id.mine_activity);
+
 
         sensorManager=(SensorManager)getSystemService(SENSOR_SERVICE);
         // add listener. The listener will be  (this) class
@@ -133,7 +141,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
         text_cur_activity = (TextView) findViewById(R.id.cur_movement);
 
-        Spinner spinner = (Spinner) findViewById(R.id.mine_activity);
+
         // Создаем адаптер ArrayAdapter с помощью массива строк и стандартной разметки элемета spinner
         ArrayAdapter<String> adapter = new ArrayAdapter<String>(this, android.R.layout.simple_spinner_item, mine_activities);
         // Определяем разметку для использования при выборе элемента
@@ -164,11 +172,28 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             }
         };
         spinner.setOnItemSelectedListener(itemSelectedListener);
+
+
+        log_checker.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+
+                if (isChecked){
+                    spinner.setVisibility(View.VISIBLE);
+                } else{
+                    spinner.setVisibility(View.INVISIBLE);
+                }
+
+            }
+        });
+
     }
 
     @Override
     public void onAccuracyChanged(Sensor arg0, int arg1) {
     }
+
+
 
 
     public void onSensorChanged(SensorEvent event){
@@ -227,16 +252,17 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
             }
         }
+        int series_len = 30 * 4;
+        if (dataQueue.size() >= series_len) {
+            float[] cur_data = new float[series_len];
 
-        if (dataQueue.size() >= 20) {
-            float[] cur_data = new float[200];
-
-            for (int i = 0; i < 20; ++i){
+            for (int i = 0; i < series_len; ++i){
                 cur_data[i] = dataQueue.poll();
             }
 
             int pred = des_tree.predict(cur_data);
-            text_cur_activity.setText(activities[pred]);
+
+            text_cur_activity.setText("Prediction: " + activities[pred]);
 
         }
 
@@ -251,20 +277,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         return true;
     }
 
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        // Handle action bar item clicks here. The action bar will
-        // automatically handle clicks on the Home/Up button, so long
-        // as you specify a parent activity in AndroidManifest.xml.
-        int id = item.getItemId();
 
-        //noinspection SimplifiableIfStatement
-        if (id == R.id.action_settings) {
-            return true;
-        }
-
-        return super.onOptionsItemSelected(item);
-    }
 
     /**
      * A native method that is implemented by the 'native-lib' native library,
@@ -280,7 +293,6 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
 
     private void startRecording() {
-
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             requestPermissions(new String[]{android.Manifest.permission.WRITE_EXTERNAL_STORAGE}, 1);
@@ -298,6 +310,8 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         File filename = new File(dir, name);
         try {
             file = new BufferedWriter(new FileWriter(filename));
+            file_flag = 1;
+
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -306,7 +320,10 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
     private void stopRecording() {
         try {
-            file.close();
+            if (file_flag == 1) {
+                file.close();
+                file_flag = 0;
+            }
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -353,6 +370,5 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     private void write(String tag) {
         write(tag, (String[]) null);
     }
-
 
 }
